@@ -14,7 +14,7 @@ pub struct ThreadPool {
 type Job = Box<dyn FnOnce()  + Send + 'static>;
 pub struct Worker{
     id: usize,
-    thread: thread::JoinHandle<()>,
+    thread: Option<thread::JoinHandle<()>>,
 }
 
 impl Worker{
@@ -25,7 +25,7 @@ impl Worker{
             job();
             
         });
-        Worker { id: _id, thread }
+        Worker { id:  _id, thread: Some(thread) }
     }
 }
 
@@ -54,4 +54,16 @@ impl ThreadPool{
     //         F: FnOnce() -> T,
     //         F: Send + 'static,
     //         T: Send + 'static,
+}
+
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        for worker in &mut self.workers {
+            println!("Shutting down worker {}", worker.id);
+            if let Some(thread) = worker.thread.take() {
+                thread.join().unwrap();
+            }
+            //worker.thread.join().unwrap();
+        }
+    }
 }
