@@ -8,21 +8,37 @@ use std::{
 
 pub struct ThreadPool {
     workers: Vec<Worker>,
-    sender: mpsc::Sender<Job>,
+    sender: mpsc::Sender<Message>,
 }
 
 type Job = Box<dyn FnOnce()  + Send + 'static>;
+
+enum Message{
+    NewJob(Job),
+    Terminate,
+}
 pub struct Worker{
     id: usize,
     thread: Option<thread::JoinHandle<()>>,
 }
 
 impl Worker{
-    fn new(_id: usize, receiver : Arc<Mutex<mpsc::Receiver<Job>>>) -> Worker {
+    fn new(_id: usize, receiver : Arc<Mutex<mpsc::Receiver<Message>>>) -> Worker {
         let thread = thread::spawn(move || loop {
-            let job = receiver.lock().unwrap().recv().unwrap();
-            println!("Worker {} got a job; executing.", _id);
-            job();
+
+            let message = receiver.lock().unwrap().recv().unwrap();
+            match message {
+                Message::NewJob(job) => {
+                    
+                    println!("Worker {} got a job; executing.", _id);
+                    job();
+                },
+                Message::Terminate => {
+                    println!("Worker {} was told to terminate.", _id);
+                    break;
+                }
+            }
+           
             
         });
         Worker { id:  _id, thread: Some(thread) }
@@ -46,7 +62,7 @@ impl ThreadPool{
         where F: FnOnce() + Send + 'static,
         {
             let job = Box::new(_f);
-            self.sender.send(job).unwrap();
+            self.sender.send(Message::NewJob(job)).unwrap();
         }
 
     // pub fn spawn<F, T>(f:F) -> JoinHandle<T>
@@ -58,6 +74,11 @@ impl ThreadPool{
 
 impl Drop for ThreadPool {
     fn drop(&mut self) {
+        println!("Sending terminate message to all workers.");
+        for _ in &mut self.workers {
+            self.sender.send(Message::Terminate).unwrap();
+        }
+        println!("Shutting down all workers.");
         for worker in &mut self.workers {
             println!("Shutting down worker {}", worker.id);
             if let Some(thread) = worker.thread.take() {
@@ -67,3 +88,5 @@ impl Drop for ThreadPool {
         }
     }
 }
+
+
