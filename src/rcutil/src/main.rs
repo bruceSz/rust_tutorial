@@ -1,4 +1,4 @@
-git//#use clap::{Arg, App};
+//#use clap::{Arg, App};
 // use clap::Parser;
 
 
@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use clap::{arg, command, value_parser, ArgAction, Arg, Command};
 
 use clap::Parser;
+use num_cpus;
 
 
 
@@ -110,6 +111,10 @@ fn parse_args() -> clap::ArgMatches  {
 
 }
 
+fn cpu_cores() {
+    println!("Number of logical core is {}", num_cpus::get());
+}
+
 fn dispatch_command(matches: clap::ArgMatches) {
     if let Some(config) = matches.get_one::<PathBuf>("config") {
         println!("config: {:?}", config);
@@ -131,7 +136,7 @@ fn dispatch_command(matches: clap::ArgMatches) {
     let s = String::from("hello");
     match &command_str as &str {
             "ls" => println!(" matched with: ls command"),
-          
+            "cores" => cpu_cores(),
             //String("ps") => println!("ps command"),
             //String("df") => println!("df command"),
             _ => println!("Don't be crazy provide a valid command"),
